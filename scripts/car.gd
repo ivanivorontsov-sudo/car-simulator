@@ -364,7 +364,9 @@ func _update_engine(delta: float, speed_ms: float) -> void:
 func _apply_steering(delta: float) -> void:
 	var speed_factor := clampf(absf(speed_kmh) / 180.0, 0.0, 1.0)
 	var max_steer := lerpf(max_steer_angle, min_steer_angle, speed_factor)
-	var target := steer_input * max_steer
+	# VehicleBody3D: positive steering rotates +Y = turn LEFT (vehicle faces -Z).
+	# get_axis(steer_left, steer_right) is negative on A / positive on D, so negate.
+	var target := -steer_input * max_steer
 	steering = lerp_angle(steering, target, 1.0 - exp(-delta * 10.0))
 
 

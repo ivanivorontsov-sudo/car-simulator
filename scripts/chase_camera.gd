@@ -52,10 +52,10 @@ func _physics_process(delta: float) -> void:
 	fov = lerpf(fov, lerpf(base_fov, max_fov, fov_t), 1.0 - exp(-delta * 2.2))
 
 	if mode == Mode.HOOD:
-		var local_pos := Vector3(steer * -0.08, hood_height, hood_back)
+		var local_pos := Vector3(steer * 0.08, hood_height, hood_back)
 		var desired: Vector3 = target.global_transform * local_pos
 		global_position = global_position.lerp(desired, 1.0 - exp(-delta * 16.0))
-		var look_local := Vector3(steer * 1.6, hood_height - 0.12, -16.0)
+		var look_local := Vector3(-steer * 1.6, hood_height - 0.12, -16.0)
 		var look: Vector3 = target.global_transform * look_local
 		if not _look_ready:
 			_look_point = look
@@ -73,7 +73,7 @@ func _physics_process(delta: float) -> void:
 			target.global_position
 			+ Vector3.UP * chase_look_height
 			+ travel * (5.5 + clampf(speed_kmh * 0.04, 0.0, 8.0))
-			+ right * steer * (7.5 + speed_kmh * 0.02)
+			+ -right * steer * (7.5 + speed_kmh * 0.02)
 		)
 		if not _look_ready:
 			_look_point = look
