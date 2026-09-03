@@ -4,9 +4,9 @@ A playable 3D car driving simulator for Windows, built with **Godot 4.4**.
 
 Играбельный 3D-симулятор вождения для Windows на **Godot 4.4**.
 
-Player car: Kenney CC0 sedan-sports on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, a torque curve, gears (R + 1–5, automatic with Q/E manual), steering, brakes, handbrake, suspension, tire slip, and weight transfer.
+Player car: Kenney CC0 sedan-sports (scaled to a ~4 m wheelbase) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, a torque curve, gears (R + 1–5, automatic with Q/E manual), steering, brakes, handbrake, suspension, tire slip, weight transfer, and tire marks. Circuit has asphalt, rumble strips, gravel runoff at the same height as the road, then a sloped apron — leaving the tarmac does not trap the chassis.
 
-Машина игрока: седан Kenney (CC0) на `VehicleBody3D` + `VehicleWheel3D` с оборотами, кривой крутящего момента, передачами (R + 1–5, автомат и ручной Q/E), рулём, тормозами, ручником, подвеской, скольжением шин и переносом веса.
+Машина игрока: седан Kenney (CC0), увеличенный до колёсной базы ~4 м, на `VehicleBody3D` + `VehicleWheel3D` с оборотами, кривой момента, передачами (R + 1–5), рулём, тормозами, ручником, подвеской и следами шин. Обочина на той же высоте, что и асфальт — машина не застревает на кромке.
 
 ![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -44,7 +44,7 @@ Player car: Kenney CC0 sedan-sports on `VehicleBody3D` + `VehicleWheel3D` with e
 | **F11** | Fullscreen / Полный экран |
 | Gamepad | Left stick steer, RT throttle, LT brake, B handbrake, Y camera, X reset, Start pause |
 
-HUD: speed in **km/h**, current **gear**, **RPM** bar.
+HUD: analog-style **tachometer**, **gear**, speed in **km/h**, RPM bar. Camera: chase (looks into corners, FOV grows with speed) and a hood cam that sits in the cabin, not glued to the hood.
 
 ## Run from source / Запуск из исходников
 
@@ -69,11 +69,12 @@ Requirements: [Godot 4.4.x](https://godotengine.org/download) (tested with **4.4
 ## Physics / Физика
 
 - Godot `VehicleBody3D` + four `VehicleWheel3D` (RWD, front steer)
-- Engine: idle 850 RPM, redline 7200, peak torque ~320 N·m @ 4300 RPM
-- Gearbox: reverse + 1–5, final drive 3.85, auto up/downshift
+- Engine: idle 900 RPM, redline 7500, peak torque ~455 N·m @ 4800 RPM
+- Gearbox: reverse + 1–5, final drive 3.73, auto up/downshift
 - Speed-sensitive steering, split front/rear brakes, handbrake cuts rear grip
-- Suspension stiffness/damping, tire `friction_slip`, longitudinal/lateral weight transfer, simple aero drag/downforce
-- Speed displayed in km/h
+- Stiffer damped suspension, low CG, extra downforce (simcade, still not BeamNG)
+- Driveable gravel shoulder at road height + sloped apron; outer Armco well past the runoff; no inner concrete wall
+- Speed displayed in km/h; R resets to the start/finish grid
 
 This is **not** a soft-body simulator (BeamNG). It is a rigid-body vehicle model with a drivetrain layer.
 

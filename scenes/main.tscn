@@ -19,7 +19,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
 [node name="ChaseCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.92, 0.39, 0, -0.39, 0.92, 0, 3.2, 8)
 current = true
-fov = 70.0
+fov = 68.0
 far = 600.0
 script = ExtResource("4_cam")
 

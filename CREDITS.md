@@ -76,6 +76,7 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 
 - `assets/textures/smoke.png` — soft particle disc (original, CC0 as part of this project)
 - `assets/textures/checker.png` — start/finish checkers (original)
+- `assets/textures/skid.png` — tire-mark streak (original, CC0 as part of this project)
 - `icon.svg` — app icon (original)
 
 ---
