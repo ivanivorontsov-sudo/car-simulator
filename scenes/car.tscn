@@ -1,0 +1,77 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/car.gd" id="1_car"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_chassis"]
+size = Vector3(0.92, 0.48, 2.05)
+
+[node name="Car" type="VehicleBody3D"]
+mass = 1180.0
+center_of_mass_mode = 1
+center_of_mass = Vector3(0, -0.18, 0.06)
+continuous_cd = true
+script = ExtResource("1_car")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.58, 0)
+shape = SubResource("BoxShape3D_chassis")
+
+[node name="WheelFL" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.32, -0.66)
+use_as_steering = true
+use_as_traction = false
+wheel_radius = 0.28
+wheel_rest_length = 0.09
+wheel_friction_slip = 3.6
+suspension_stiffness = 55.0
+suspension_max_force = 8500.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelFR" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.32, -0.66)
+use_as_steering = true
+use_as_traction = false
+wheel_radius = 0.28
+wheel_rest_length = 0.09
+wheel_friction_slip = 3.6
+suspension_stiffness = 55.0
+suspension_max_force = 8500.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelBL" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.3, 0.32, 0.66)
+use_as_steering = false
+use_as_traction = true
+wheel_radius = 0.28
+wheel_rest_length = 0.09
+wheel_friction_slip = 3.2
+suspension_stiffness = 55.0
+suspension_max_force = 8500.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelBR" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 0.32, 0.66)
+use_as_steering = false
+use_as_traction = true
+wheel_radius = 0.28
+wheel_rest_length = 0.09
+wheel_friction_slip = 3.2
+suspension_stiffness = 55.0
+suspension_max_force = 8500.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="EngineAudio" type="AudioStreamPlayer" parent="."]
+volume_db = -8.0
+bus = &"Engine"
+
+[node name="SkidAudio" type="AudioStreamPlayer3D" parent="."]
+volume_db = -40.0
+bus = &"Tires"
+attenuation_model = 1
+max_distance = 40.0

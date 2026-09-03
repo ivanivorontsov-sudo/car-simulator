@@ -1,0 +1,10 @@
+.godot/
+*.translation
+export.cfg
+build/
+*.apk
+*.aab
+.import/
+*.tmp
+.DS_Store
+Thumbs.db

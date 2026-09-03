@@ -1,0 +1,82 @@
+name: Build Windows installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    name: Export Windows + package installer
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: "4.4.1"
+      GODOT_TAG: "4.4.1-stable"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends unzip curl ca-certificates nsis libfontconfig1 libgl1
+
+      - name: Download Godot editor
+        run: |
+          set -euo pipefail
+          curl -L --retry 5 --retry-delay 4 -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_linux.x86_64.zip"
+          unzip -o /tmp/godot.zip -d /tmp/godot
+          sudo install -m 0755 /tmp/godot/Godot_v${GODOT_TAG}_linux.x86_64 /usr/local/bin/godot
+          godot --version
+
+      - name: Install Windows export templates
+        run: |
+          set -euo pipefail
+          curl -L --retry 5 --retry-delay 4 -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_TAG}/Godot_v${GODOT_TAG}_export_templates.tpz"
+          TEMPLATE_DIR="${HOME}/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "${TEMPLATE_DIR}"
+          unzip -o /tmp/templates.tpz -d /tmp/godot-templates
+          mv /tmp/godot-templates/templates/* "${TEMPLATE_DIR}/"
+          ls -lh "${TEMPLATE_DIR}" | head
+          test -f "${TEMPLATE_DIR}/windows_release_x86_64.exe"
+
+      - name: Import project
+        run: |
+          mkdir -p build/windows build/installer
+          godot --headless --path . --import --quit || true
+
+      - name: Export Windows desktop
+        run: |
+          set -euo pipefail
+          godot --headless --path . --export-release "Windows Desktop" "build/windows/CarSimulator.exe"
+          ls -lh build/windows
+          test -f build/windows/CarSimulator.exe
+
+      - name: Package installer (NSIS, zip fallback)
+        run: |
+          set -euo pipefail
+          cp installer/Start.bat build/windows/Start.bat
+          if command -v makensis >/dev/null 2>&1; then
+            if makensis installer/car-simulator.nsi; then
+              echo "NSIS installer created"
+            else
+              echo "NSIS failed, falling back to zip"
+            fi
+          fi
+          if [ ! -f build/installer/CarSimulatorSetup.exe ]; then
+            (cd build/windows && zip -r ../../build/installer/car-simulator-windows.zip .)
+          fi
+          ls -lh build/installer
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: car-simulator-windows-installer
+          path: build/installer/
+          if-no-files-found: error
+          retention-days: 30
