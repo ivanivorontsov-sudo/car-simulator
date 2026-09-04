@@ -4,9 +4,9 @@ A playable 3D car driving simulator for Windows, built with **Godot 4.4**.
 
 Играбельный 3D-симулятор вождения для Windows на **Godot 4.4**.
 
-Player car: Kenney CC0 sedan-sports (scaled to a ~4 m wheelbase) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, a torque curve, gears (R + 1–5, automatic with Q/E manual), steering, brakes, handbrake, suspension, tire slip, weight transfer, and tire marks. Circuit has asphalt, rumble strips, gravel runoff at the same height as the road, then a sloped apron — leaving the tarmac does not trap the chassis.
+Player car: Kenney CC0 sedan-sports (scaled to a ~4 m wheelbase) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, a torque curve, gears (R + 1–5, automatic with Q/E manual), **progressive** steering (A/D accumulate / return), brakes, handbrake, suspension, tire slip, anti-spin, weight transfer, tire marks, a visible cabin driver + steering wheel, and crash FX on cliff impact. Circuit: wider asphalt (~20 m), rumble, gravel runoff at road height, then a real **cliff drop** (no infinite grass collider).
 
-Машина игрока: седан Kenney (CC0), увеличенный до колёсной базы ~4 м, на `VehicleBody3D` + `VehicleWheel3D` с оборотами, кривой момента, передачами (R + 1–5), рулём, тормозами, ручником, подвеской и следами шин. Обочина на той же высоте, что и асфальт — машина не застревает на кромке.
+Машина игрока: седан Kenney (CC0) на `VehicleBody3D` с прогрессивным рулём, антизаносом, водителем в салоне и крушением при падении с обрыва. Трасса шире (~20 м), обочина проезжаема, за ней — обрыв без невидимой плоскости.
 
 ![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -71,9 +71,9 @@ Requirements: [Godot 4.4.x](https://godotengine.org/download) (tested with **4.4
 - Godot `VehicleBody3D` + four `VehicleWheel3D` (RWD, front steer)
 - Engine: idle 900 RPM, redline 7500, peak torque ~455 N·m @ 4800 RPM
 - Gearbox: reverse + 1–5, final drive 3.73, auto up/downshift
-- Speed-sensitive steering, split front/rear brakes, handbrake cuts rear grip
+- Progressive keyboard steering + speed-sensitive max angle; cabin steering wheel; split brakes; handbrake cuts rear grip without ice
 - Stiffer damped suspension, low CG, extra downforce (simcade, still not BeamNG)
-- Driveable gravel shoulder at road height + sloped apron; outer Armco well past the runoff; no inner concrete wall
+- Wider asphalt (~10 m half-width), driveable gravel shoulder, soft apron, then cliff void + crash floor; outer Armco past runoff; no inner wall; no infinite flat ground collider
 - Speed displayed in km/h; R resets to the start/finish grid
 
 This is **not** a soft-body simulator (BeamNG). It is a rigid-body vehicle model with a drivetrain layer.

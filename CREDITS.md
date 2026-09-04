@@ -70,6 +70,13 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 - File: `assets/audio/tires_squal_loop.wav`
 - Attribution: Tire squeal by Tom Haigh (audible-edge) / CC-BY 3.0
 
+### Crash / impact hits
+- License: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+- Source: https://kenney.nl/assets/impact-sounds (Kenney Impact Sounds)
+- Files: `assets/audio/crash_metal_0.ogg`, `assets/audio/crash_metal_1.ogg`, `assets/audio/crash_plate_0.ogg`
+- Author: Kenney (www.kenney.nl)
+- License copy: `assets/licenses/kenney_impact-sounds_License.txt`
+
 ---
 
 ## Generated in-repo / Сгенерировано в репозитории
@@ -77,6 +84,8 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 - `assets/textures/smoke.png` — soft particle disc (original, CC0 as part of this project)
 - `assets/textures/checker.png` — start/finish checkers (original)
 - `assets/textures/skid.png` — tire-mark streak (original, CC0 as part of this project)
+- Procedural seated low-poly **driver** + cabin **steering wheel** (built in `scripts/car.gd`, original CC0)
+- Cliff / apron / infield meshes built at runtime by `scripts/world_builder.gd`
 - `icon.svg` — app icon (original)
 
 ---

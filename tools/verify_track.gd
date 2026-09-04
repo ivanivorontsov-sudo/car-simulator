@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless check: continuous runoff, spawn, and a few physics seconds.
+## Headless check: continuous runoff, cliff void, spawn, physics seconds.
 
 func _init() -> void:
 	var code := 0
@@ -17,8 +17,8 @@ func _init() -> void:
 		ymin = minf(ymin, p.y)
 		ymax = maxf(ymax, p.y)
 	print("centerline points=", pts.size(), " y=[", snapped(ymin, 0.01), ",", snapped(ymax, 0.01), "]")
-	if ymin < 0.5:
-		push_error("track dips too low (lip risk vs y=0 grass): ymin=%s" % ymin)
+	if ymin < 2.0:
+		push_error("track too low for cliff drop: ymin=%s" % ymin)
 		code = 1
 	# Shoulder must match track height (no vertical lip).
 	var i := 0
@@ -34,26 +34,46 @@ func _init() -> void:
 	if max_lip > 0.02:
 		push_error("shoulder not coplanar with track")
 		code = 1
-	var apron_y := world._surface_y(2.0, WorldBuilder._APRON_END)
-	print("apron outer y @ track 2.0: ", snapped(apron_y, 0.001))
-	if apron_y > 0.1:
-		push_error("apron does not meet grass")
+	# Soft apron mid stays near track; cliff rim drops hard.
+	var soft_y := world._surface_y(6.5, WorldBuilder._APRON_START + WorldBuilder.APRON_WIDTH * 0.3)
+	print("soft apron y @ 6.5: ", snapped(soft_y, 0.001))
+	if soft_y < 5.5:
+		push_error("soft apron drops too early")
 		code = 1
-	var mid_y := world._surface_y(2.0, WorldBuilder._APRON_START + WorldBuilder.APRON_WIDTH * 0.5)
-	print("apron mid y: ", snapped(mid_y, 0.001), " (expect ~1.0)")
-	if mid_y > 1.8 or mid_y < 0.4:
-		push_error("apron slope not gentle")
+	var rim_y := world._surface_y(6.5, WorldBuilder._APRON_END)
+	print("cliff rim/end y @ 6.5: ", snapped(rim_y, 0.001), " (expect deep drop)")
+	if rim_y > 0.0:
+		push_error("cliff end does not drop below zero")
 		code = 1
-	if world.spawn_transform.origin.y < 1.0:
+	if world.spawn_transform.origin.y < 3.0:
 		push_error("spawn too low")
 		code = 1
 	print("spawn: ", world.spawn_transform.origin)
+	print("TRACK_HALF_WIDTH=", WorldBuilder.TRACK_HALF_WIDTH)
+	if WorldBuilder.TRACK_HALF_WIDTH < 9.0:
+		push_error("road not wide enough")
+		code = 1
 	var driveable := world.find_child("DriveableSurface", true, false)
 	if driveable == null:
 		push_error("missing DriveableSurface collision")
 		code = 1
 	else:
 		print("DriveableSurface ok")
+	var crash_floor := world.find_child("CrashFloor", true, false)
+	if crash_floor == null:
+		push_error("missing CrashFloor")
+		code = 1
+	else:
+		print("CrashFloor ok")
+	# Infinite flat ground collider must be gone.
+	for c in world.get_children():
+		if c is StaticBody3D and c.name != "DriveableSurface" and c.name != "OuterBarrier" and c.name != "InfieldCollision" and c.name != "CrashFloor":
+			var cs: CollisionShape3D = c.get_node_or_null("CollisionShape3D")
+			if cs and cs.shape is BoxShape3D:
+				var b := cs.shape as BoxShape3D
+				if b.size.x > 400.0 and b.size.z > 400.0 and absf(cs.position.y) < 2.0:
+					push_error("legacy infinite ground collider still present: %s" % c.name)
+					code = 1
 	var inner_wall := world.find_child("InnerWall", true, false)
 	if inner_wall:
 		push_error("inner wall should be gone")
@@ -63,7 +83,6 @@ func _init() -> void:
 		push_error("missing OuterBarrier")
 		code = 1
 
-	# Load car, sit on spawn, step physics.
 	var car_ps: PackedScene = load("res://scenes/car.tscn")
 	var car: PlayerCar = car_ps.instantiate()
 	root.add_child(car)
@@ -73,10 +92,23 @@ func _init() -> void:
 		await physics_frame
 		frames += 1
 	print("car after 90 ticks pos=", car.global_position, " vel=", car.linear_velocity.length())
-	if car.global_position.y < 0.3:
+	if car.global_position.y < 2.0:
 		push_error("car fell through world")
 		code = 1
-	# Nudge onto the shoulder and ensure we don't drop a meter.
+	# Driver + steering wheel must exist.
+	var driver := car.find_child("Driver", true, false)
+	var wheel := car.find_child("SteeringWheel", true, false)
+	if driver == null:
+		push_error("missing Driver mesh")
+		code = 1
+	else:
+		print("Driver ok")
+	if wheel == null:
+		push_error("missing SteeringWheel")
+		code = 1
+	else:
+		print("SteeringWheel ok")
+	# Nudge onto the shoulder and ensure we don't drop.
 	var f0: Dictionary = world._frame_at(pts, 3)
 	var shoulder_pos: Vector3 = f0["p"] + f0["right"] * (WorldBuilder.TRACK_HALF_WIDTH + 4.0)
 	shoulder_pos.y = f0["p"].y + 0.7
@@ -89,9 +121,28 @@ func _init() -> void:
 		min_y = minf(min_y, car.global_position.y)
 		frames += 1
 	print("shoulder sit y=", car.global_position.y, " min_y=", min_y, " track_y=", f0["p"].y)
-	# Body origin sits ~0.05-0.6 above surface. Must not drop to grass (y~0.1).
-	if min_y < f0["p"].y - 0.4:
-		push_error("car dropped off shoulder toward grass plane")
+	if min_y < f0["p"].y - 0.5:
+		push_error("car dropped off shoulder")
+		code = 1
+	# Past rim: car must freefall (no soft grass catch).
+	car.is_crashed = false
+	car.freeze = false
+	var fall_pos: Vector3 = f0["p"] + f0["right"] * (WorldBuilder._RIM + 3.0)
+	fall_pos.y = f0["p"].y + 1.0
+	car.global_transform = Transform3D(world.spawn_transform.basis, fall_pos)
+	car.linear_velocity = Vector3.ZERO
+	car.angular_velocity = Vector3.ZERO
+	frames = 0
+	var fell := false
+	while frames < 180:
+		await physics_frame
+		if car.global_position.y < f0["p"].y - 4.0:
+			fell = true
+			break
+		frames += 1
+	print("cliff freefall=", fell, " y=", car.global_position.y)
+	if not fell:
+		push_error("car did not freefall past cliff rim")
 		code = 1
 	if code == 0:
 		print("VERIFY_OK")
