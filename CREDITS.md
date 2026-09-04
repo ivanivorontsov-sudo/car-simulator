@@ -84,7 +84,7 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 - `assets/textures/smoke.png` — soft particle disc (original, CC0 as part of this project)
 - `assets/textures/checker.png` — start/finish checkers (original)
 - `assets/textures/skid.png` — tire-mark streak (original, CC0 as part of this project)
-- Procedural seated low-poly **driver** + cabin **steering wheel** (built in `scripts/car.gd`, original CC0)
+- Procedural seated low-poly **driver**, cabin **steering wheel**, **dash/hood** for FPS, and **visual damage panels** (built in `scripts/car.gd`, original CC0)
 - Cliff / apron / infield meshes built at runtime by `scripts/world_builder.gd`
 - `icon.svg` — app icon (original)
 

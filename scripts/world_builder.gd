@@ -5,6 +5,7 @@ class_name WorldBuilder
 ## beyond the apron (no infinite flat collider catching the car).
 
 var spawn_transform: Transform3D = Transform3D.IDENTITY
+var _centerline: PackedVector3Array = PackedVector3Array()
 
 ## ~20 m full asphalt width (real-road feel).
 const TRACK_HALF_WIDTH := 10.0
@@ -28,6 +29,7 @@ const _APRON_END := _RIM
 func build() -> void:
 	_setup_environment()
 	var centerline := _make_centerline()
+	_centerline = centerline
 	_build_infield(centerline)
 	_build_track(centerline)
 	_build_cliffs(centerline)
@@ -37,11 +39,42 @@ func build() -> void:
 	_compute_spawn(centerline)
 
 
+
+func surface_grip_at(world_pos: Vector3) -> float:
+	## Asphalt 1.0, gravel/shoulder ~0.72, grass apron ~0.55, unknown 0.85.
+	if _centerline.is_empty():
+		return 1.0
+	var best_d := 1e9
+	var best_lat := 0.0
+	var n := _centerline.size()
+	var step := maxi(1, int(n / 80))
+	for i in range(0, n, step):
+		var f := _frame_at(_centerline, i)
+		var p: Vector3 = f["p"]
+		var right: Vector3 = f["right"]
+		var delta := world_pos - p
+		delta.y = 0.0
+		var d := delta.length()
+		if d < best_d:
+			best_d = d
+			best_lat = delta.dot(right)
+	var ad := absf(best_lat)
+	if ad <= TRACK_HALF_WIDTH:
+		return 1.0
+	if ad <= _SHOULDER_START:
+		return 0.88  # rumble
+	if ad <= _APRON_START:
+		return 0.72  # gravel
+	if ad <= _RIM:
+		return 0.55  # grass apron
+	return 0.45
+
+
 func _setup_environment() -> void:
 	var hdri: Texture2D = load("res://assets/hdri/kloofendal_43d_clear_2k.hdr")
 	var sky_mat := PanoramaSkyMaterial.new()
 	sky_mat.panorama = hdri
-	sky_mat.energy_multiplier = 1.22
+	sky_mat.energy_multiplier = 1.28
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 	var env := Environment.new()
@@ -59,11 +92,11 @@ func _setup_environment() -> void:
 	env.ssil_enabled = true
 	env.ssil_intensity = 0.9
 	env.ssr_enabled = true
-	env.ssr_max_steps = 48
-	env.ssr_fade_in = 0.12
+	env.ssr_max_steps = 64
+	env.ssr_fade_in = 0.08
 	env.ssr_fade_out = 1.8
 	env.glow_enabled = true
-	env.glow_intensity = 0.52
+	env.glow_intensity = 0.58
 	env.glow_bloom = 0.14
 	env.glow_hdr_threshold = 0.82
 	env.fog_enabled = true
@@ -85,7 +118,7 @@ func _setup_environment() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-52.0, 42.0, 0.0)
-	sun.light_energy = 1.72
+	sun.light_energy = 1.85
 	sun.light_color = Color(1.0, 0.95, 0.86)
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.05
@@ -383,15 +416,16 @@ func _build_driveable_collision(pts: PackedVector3Array) -> void:
 func _asphalt_mat() -> StandardMaterial3D:
 	var asphalt := StandardMaterial3D.new()
 	asphalt.albedo_texture = load("res://assets/textures/asphalt_02_diff_1k.jpg")
-	asphalt.albedo_color = Color(0.72, 0.74, 0.76)
+	asphalt.albedo_color = Color(0.68, 0.70, 0.73)
 	asphalt.normal_enabled = true
 	asphalt.normal_texture = load("res://assets/textures/asphalt_02_nor_gl_1k.jpg")
 	asphalt.roughness_texture = load("res://assets/textures/asphalt_02_rough_1k.jpg")
-	asphalt.roughness = 0.28
-	asphalt.metallic = 0.12
+	asphalt.roughness = 0.18
+	asphalt.metallic = 0.18
 	asphalt.clearcoat_enabled = true
-	asphalt.clearcoat = 0.38
-	asphalt.clearcoat_roughness = 0.18
+	asphalt.clearcoat = 0.55
+	asphalt.clearcoat_roughness = 0.08
+	asphalt.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
 	asphalt.uv1_scale = Vector3(1, 1, 1)
 	return asphalt
 
@@ -770,7 +804,7 @@ func _place_props(pts: PackedVector3Array) -> void:
 	rng.seed = 20260904
 
 	# Dense roadside — placed on infield / beyond rim visually, not on driveable asphalt.
-	for i in 140:
+	for i in 190:
 		var idx := rng.randi_range(0, n - 1)
 		var f := _frame_at(pts, idx)
 		var side := _outward_sign(f) if rng.randf() > 0.4 else -_outward_sign(f)
@@ -784,7 +818,7 @@ func _place_props(pts: PackedVector3Array) -> void:
 		var path: String = trees[rng.randi_range(0, trees.size() - 1)]
 		_spawn_model(path, pos, rng.randf() * TAU, rng.randf_range(1.7, 2.9))
 
-	for i in 70:
+	for i in 100:
 		var idx := rng.randi_range(0, n - 1)
 		var f := _frame_at(pts, idx)
 		var side := 1.0 if rng.randf() > 0.5 else -1.0
@@ -798,7 +832,7 @@ func _place_props(pts: PackedVector3Array) -> void:
 		var bush := "res://assets/models/nature/plant_bushLarge.glb" if rng.randf() > 0.5 else "res://assets/models/nature/plant_bush.glb"
 		_spawn_model(bush, pos, rng.randf() * TAU, rng.randf_range(1.4, 2.3))
 
-	for i in 28:
+	for i in 40:
 		var idx := rng.randi_range(0, n - 1)
 		var f := _frame_at(pts, idx)
 		var pos: Vector3 = f["p"] + f["right"] * (1.0 if rng.randf() > 0.5 else -1.0) * rng.randf_range(_RIM + 4.0, _RIM + 28.0)

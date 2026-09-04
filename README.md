@@ -4,11 +4,13 @@ A playable 3D car driving simulator for Windows, built with **Godot 4.4**.
 
 Играбельный 3D-симулятор вождения для Windows на **Godot 4.4**.
 
-Player car: Kenney CC0 sedan-sports (scaled to a ~4 m wheelbase) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, a torque curve, gears (R + 1–5, automatic with Q/E manual), **progressive** steering (A/D accumulate / return), brakes, handbrake, suspension, tire slip, anti-spin, weight transfer, tire marks, a visible cabin driver + steering wheel, and crash FX on cliff impact. Circuit: wider asphalt (~20 m), rumble, gravel runoff at road height, then a real **cliff drop** (no infinite grass collider).
+**v1.3.0** — true first-person driver view (eye through windshield, visible steering wheel, no rearward pull), hold-to-turn progressive steering, visual damage deformation with ~5 s auto-restart after critical crash / cliff fall, surface grip (asphalt / gravel / grass), cabin dash for FPS.
 
-Машина игрока: седан Kenney (CC0) на `VehicleBody3D` с прогрессивным рулём, антизаносом, водителем в салоне и крушением при падении с обрыва. Трасса шире (~20 м), обочина проезжаема, за ней — обрыв без невидимой плоскости.
+Player car: Kenney CC0 sedan-sports (scaled ~4 m) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, torque curve, gears (R + 1–5), **hold-to-turn** steering, brakes, handbrake, suspension travel, tire slip, anti-spin, weight transfer, **visual damage** (mesh crumple / bent panels / smoke — not soft-body), cliff freefall → wreck → auto-restart. Circuit: ~20 m asphalt, gravel runoff, cliff void (no infinite ground plane).
 
-![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green)
+Машина игрока: седан Kenney (CC0) с видом от первого лица, плавным рулём, визуальными повреждениями и авто-рестартом после критического краша / падения с обрыва.
+
+![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.3.0-blue)
 
 ## Play / Как играть
 
@@ -34,17 +36,17 @@ Player car: Kenney CC0 sedan-sports (scaled to a ~4 m wheelbase) on `VehicleBody
 | --- | --- |
 | **W** / **↑** | Throttle / Газ |
 | **S** / **↓** | Brake / reverse / Тормоз / задний ход |
-| **A D** / **← →** | Steer / Руль |
+| **A D** / **← →** | Hold to steer (smooth) / Удерживать для поворота |
 | **Space** | Brake / Тормоз |
 | **Shift** | Handbrake / Ручник |
-| **C** | Chase / hood camera / Камера (преследование / капот) |
+| **C** | Chase ↔ FPS driver view / Камера (преследование ↔ FPS) |
 | **R** | Reset to start / Сброс на старт |
 | **Esc** | Pause / Пауза |
 | **Q / E** | Manual downshift / upshift / Переключение передач вручную |
 | **F11** | Fullscreen / Полный экран |
 | Gamepad | Left stick steer, RT throttle, LT brake, B handbrake, Y camera, X reset, Start pause |
 
-HUD: analog-style **tachometer**, **gear**, speed in **km/h**, RPM bar. Camera: chase (looks into corners, FOV grows with speed) and a hood cam that sits in the cabin, not glued to the hood.
+HUD: tachometer, gear, speed (km/h), RPM bar, optional **damage** bar. Critical wreck / cliff fall shows a countdown then auto-restarts (~5 s).
 
 ## Run from source / Запуск из исходников
 
@@ -66,19 +68,19 @@ Requirements: [Godot 4.4.x](https://godotengine.org/download) (tested with **4.4
 4. F5. Главная сцена: scenes/main.tscn.
 ```
 
-## Physics / Физика
+## Physics & damage / Физика и повреждения
 
 - Godot `VehicleBody3D` + four `VehicleWheel3D` (RWD, front steer)
-- Engine: idle 900 RPM, redline 7500, peak torque ~455 N·m @ 4800 RPM
-- Gearbox: reverse + 1–5, final drive 3.73, auto up/downshift
-- Progressive keyboard steering + speed-sensitive max angle; cabin steering wheel; split brakes; handbrake cuts rear grip without ice
-- Stiffer damped suspension, low CG, extra downforce (simcade, still not BeamNG)
-- Wider asphalt (~10 m half-width), driveable gravel shoulder, soft apron, then cliff void + crash floor; outer Armco past runoff; no inner wall; no infinite flat ground collider
-- Speed displayed in km/h; R resets to the start/finish grid
+- Engine: idle 900 RPM, redline 7500, peak torque ~400 N·m @ 4800 RPM
+- Gearbox: reverse + 1–5, final drive 3.55, auto up/downshift
+- Progressive hold-to-turn steering (ease-in/out) + speed-sensitive max angle; cabin wheel rotates in sync
+- Surface grip: asphalt / gravel / grass apron
+- Suspension travel, lower CG, anti-roll, yaw damping (less tippy, fewer random spins)
+- **Visual damage system**: impact impulse / hard landings crumple mesh vertices, bend panels, optional detached bumper / broken glass; smoke & sparks at high damage; engine power loss. Critical damage or cliff fall → wreck state → **~5 s auto-restart**
 
-This is **not** a soft-body simulator (BeamNG). It is a rigid-body vehicle model with a drivetrain layer.
+This is **not** a soft-body / BeamNG simulator. Deformation is a visual approximation on a rigid-body vehicle.
 
-Это не soft-body как BeamNG, а твёрдое тело с надстройкой трансмиссии.
+Это **не** soft-body как BeamNG. Повреждения — визуальная аппроксимация на твёрдом теле.
 
 ## Project layout / Структура
 
@@ -88,7 +90,7 @@ scripts/          Vehicle, world, camera, UI
 assets/models/    Kenney cars, trees, track props
 assets/textures/  Poly Haven asphalt + grass
 assets/hdri/      Poly Haven sky
-assets/audio/     Engine + skid loops
+assets/audio/     Engine + skid + impact loops
 installer/        NSIS script + Start.bat fallback
 .github/workflows/build-installer.yml
 ```

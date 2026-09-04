@@ -125,7 +125,7 @@ func _init() -> void:
 		push_error("car dropped off shoulder")
 		code = 1
 	# Past rim: car must freefall (no soft grass catch).
-	car.is_crashed = false
+	car.is_wrecked = false
 	car.freeze = false
 	var fall_pos: Vector3 = f0["p"] + f0["right"] * (WorldBuilder._RIM + 3.0)
 	fall_pos.y = f0["p"].y + 1.0

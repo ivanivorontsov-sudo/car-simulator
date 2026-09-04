@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/tachometer.gd" id="2_tach"]
@@ -39,6 +39,27 @@ corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
+
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dmg_bg"]
+bg_color = Color(0.08, 0.08, 0.1, 0.85)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dmg_fill"]
+bg_color = Color(0.35, 0.75, 0.4, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="LabelSettings" id="LabelSettings_wreck"]
+font_size = 28
+font_color = Color(1, 0.35, 0.28, 1)
+outline_size = 8
+outline_color = Color(0, 0, 0, 0.75)
 
 [sub_resource type="LabelSettings" id="LabelSettings_speed"]
 font_size = 64
@@ -162,10 +183,50 @@ offset_left = -420.0
 offset_top = 24.0
 offset_right = 420.0
 offset_bottom = 88.0
-text = "WASD / arrows drive   Space/Shift brake   C camera   R reset   Esc pause"
+text = "WASD drive   C Chase/FPS   R reset   Esc pause   crash auto-restarts"
 horizontal_alignment = 1
 autowrap_mode = 2
 
+
+
+[node name="DamageBox" type="VBoxContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 150.0
+offset_top = -150.0
+offset_right = 340.0
+offset_bottom = -28.0
+grow_vertical = 0
+
+[node name="DamageLabel" type="Label" parent="Root/DamageBox"]
+layout_mode = 2
+text = "DMG  0%"
+horizontal_alignment = 0
+
+[node name="DamageBar" type="ProgressBar" parent="Root/DamageBox"]
+custom_minimum_size = Vector2(0, 14)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_dmg_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_dmg_fill")
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="WreckLabel" type="Label" parent="Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -320.0
+offset_top = 96.0
+offset_right = 320.0
+offset_bottom = 140.0
+text = "CRASH — restart in 5…"
+label_settings = SubResource("LabelSettings_wreck")
+horizontal_alignment = 1
 
 [node name="Tach" type="Control" parent="Root"]
 layout_mode = 1
