@@ -549,30 +549,32 @@ func _attach_driver_and_cabin() -> void:
 	_add_part(_driver_root, CapsuleMesh.new(), Vector3(0.07, 0.22, 0.07), Vector3(-0.10, -0.10, -0.42), suit, Vector3(deg_to_rad(10), 0, 0))
 	_add_part(_driver_root, CapsuleMesh.new(), Vector3(0.07, 0.22, 0.07), Vector3(0.10, -0.10, -0.42), suit, Vector3(deg_to_rad(10), 0, 0))
 
-	# Steering wheel — proper rim/spokes/hub; sits low in FPS frame.
+	# Steering wheel — proper rim/spokes/hub; readable in lower third of FPS frame.
 	_steer_wheel = Node3D.new()
 	_steer_wheel.name = "SteeringWheel"
-	# Lower + slightly forward so road dominates the windshield view.
-	_steer_wheel.position = Vector3(0.28, 0.72, -0.38)
-	_steer_wheel.rotation_degrees = Vector3(-28, 0, 0)
-	_steer_wheel.scale = Vector3(0.82, 0.82, 0.82)
+	# Closer/larger than v1.3.1 speck; aligned under RHD eye, below horizon look.
+	_steer_wheel.position = Vector3(0.32, 0.90, -0.12)
+	_steer_wheel.rotation_degrees = Vector3(-22, 0, 0)
+	_steer_wheel.scale = Vector3(1.22, 1.22, 1.22)
 	visual.add_child(_steer_wheel)
 	_build_steering_wheel_mesh(_steer_wheel)
 
-	# Simple dash + hood edge for FPS framing (road still dominates).
+	# Dash only — procedural hood slab pushed down/short so it cannot occlude
+	# the windshield from the FPS eye (was a yellow-stripe / blocked-view culprit).
 	_cabin_dash = Node3D.new()
 	_cabin_dash.name = "CabinDash"
 	visual.add_child(_cabin_dash)
 	var dash_mat := StandardMaterial3D.new()
 	dash_mat.albedo_color = Color(0.1, 0.11, 0.13)
 	dash_mat.roughness = 0.65
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.35, 0.10, 0.50), Vector3(0.0, 0.70, -0.62), dash_mat)
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(0.48, 0.06, 0.22), Vector3(0.28, 0.76, -0.48), dash_mat)
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.35, 0.10, 0.42), Vector3(0.0, 0.68, -0.55), dash_mat)
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(0.48, 0.05, 0.18), Vector3(0.32, 0.74, -0.42), dash_mat)
 	var hood_mat := StandardMaterial3D.new()
 	hood_mat.albedo_color = Color(0.18, 0.2, 0.24)
 	hood_mat.roughness = 0.35
 	hood_mat.metallic = 0.45
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.4, 0.05, 0.85), Vector3(0.0, 0.66, -1.20), hood_mat)
+	# Thin + low + further forward: cue of a hood lip, not a windshield blocker.
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.25, 0.025, 0.50), Vector3(0.0, 0.42, -1.45), hood_mat)
 
 
 func _build_steering_wheel_mesh(root: Node3D) -> void:

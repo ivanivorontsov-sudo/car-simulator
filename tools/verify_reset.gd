@@ -72,9 +72,34 @@ func _init() -> void:
 	if mh:
 		var h := mh.get_string(1).to_float()
 		print("fps_eye_height=", h)
-		if h < 1.2:
-			push_error("eye height too low for road-dominant FPS")
+		if h < 1.15 or h > 1.28:
+			push_error("eye height out of driver range [1.15,1.28]: %s" % h)
 			code = 1
+	var re_lat := RegEx.new()
+	re_lat.compile(r"fps_eye_lateral: float = ([0-9.]+)")
+	var mlat := re_lat.search(cam_src)
+	if mlat:
+		print("fps_eye_lateral=", mlat.get_string(1))
+	var re_look := RegEx.new()
+	# look_local y must be near eye height (not ~0.05 asphalt aim)
+	re_look.compile(r"look_local := Vector3\([^,]+,\s*([0-9.]+),\s*(-?[0-9.]+)\)")
+	var mlook := re_look.search(cam_src)
+	if mlook == null:
+		push_error("FPS look_local not found")
+		code = 1
+	else:
+		var look_y := mlook.get_string(1).to_float()
+		var look_z := mlook.get_string(2).to_float()
+		print("fps_look_y=", look_y, " fps_look_z=", look_z)
+		if look_y < 0.7 or look_y > 1.3:
+			push_error("look_y must stay near eye height (got %s)" % look_y)
+			code = 1
+		if look_z > -15.0 or look_z < -30.0:
+			push_error("look_z should be mid-distance ahead [-30,-15] (got %s)" % look_z)
+			code = 1
+	if "deg_to_rad(-2.8)" in cam_src:
+		push_error("old steep downward pitch -2.8° still present")
+		code = 1
 	var re_f := RegEx.new()
 	re_f.compile(r"fps_fov: float = ([0-9.]+)")
 	var mf := re_f.search(cam_src)
@@ -137,8 +162,15 @@ func _init() -> void:
 		code = 1
 	else:
 		print("steer wheel children=", car._steer_wheel.get_child_count())
+		print("steer wheel pos=", car._steer_wheel.position, " scale=", car._steer_wheel.scale)
 		if car._steer_wheel.get_child_count() < 6:
 			push_error("steering wheel mesh too primitive")
+			code = 1
+		if car._steer_wheel.scale.x < 1.05:
+			push_error("steering wheel still too small for FPS presence")
+			code = 1
+		if car._steer_wheel.position.z < -0.25:
+			push_error("steering wheel too far forward (tiny in frame)")
 			code = 1
 
 	# Steer input direction: hold left should move steer_input toward -1, VehicleBody steering +

@@ -12,11 +12,11 @@ signal mode_changed(mode: Mode)
 @export var chase_height: float = 2.45
 @export var chase_look_height: float = 1.05
 ## Eye height above vehicle origin (through windshield, not roof).
-@export var fps_eye_height: float = 1.28
-## Along vehicle forward (−Z). Small positive Z sits just behind the dash.
-@export var fps_eye_forward: float = 0.22
+@export var fps_eye_height: float = 1.20
+## Along vehicle forward (−Z). Positive Z is rearward — sit behind the wheel.
+@export var fps_eye_forward: float = 0.28
 ## Lateral — right-hand seat.
-@export var fps_eye_lateral: float = 0.28
+@export var fps_eye_lateral: float = 0.32
 @export var follow_speed: float = 5.4
 @export var look_speed: float = 7.5
 @export var base_fov: float = 70.0
@@ -86,20 +86,22 @@ func _physics_process(delta: float) -> void:
 
 func _update_fps(delta: float, speed_kmh: float, steer: float) -> void:
 	# TRUE first-person: snap to eye — never lerp/lag behind on acceleration.
-	# Higher eye + slight rearward offset keeps the wheel in the lower third.
-	var local_eye := Vector3(fps_eye_lateral + steer * 0.015, fps_eye_height, fps_eye_forward)
+	# Eye behind the wheel (RHD), looking out through the windshield glass.
+	var local_eye := Vector3(fps_eye_lateral + steer * 0.012, fps_eye_height, fps_eye_forward)
 	global_position = target.global_transform * local_eye
 
-	# Look through the windshield at the road ahead (road-dominant framing).
-	var look_local := Vector3(fps_eye_lateral * 0.2 - steer * 0.7, 0.05, -14.0)
+	# Look point must stay near eye height: a near-ground look_y (e.g. 0.05) aims
+	# steeply at the asphalt so the yellow center stripe fills the frame instead
+	# of road-to-horizon through the windshield. Keep look_y ≈ eye height (±0.3).
+	var look_local := Vector3(fps_eye_lateral * 0.15 - steer * 0.85, 1.00, -22.0)
 	var look: Vector3 = target.global_transform * look_local
 	if not _look_ready:
 		_look_point = look
 		_look_ready = true
 	_look_point = _look_point.lerp(look, 1.0 - exp(-delta * 22.0))
 	look_at(_look_point, Vector3.UP)
-	# Mild downward pitch: asphalt fills frame, wheel stays bottom-of-screen.
-	rotate_object_local(Vector3.RIGHT, deg_to_rad(-2.8))
+	# Tiny nose-down only — enough for a hint of dash/hood, not asphalt-fill.
+	rotate_object_local(Vector3.RIGHT, deg_to_rad(-0.5))
 
 	var fov_t := clampf(speed_kmh / 210.0, 0.0, 1.0)
 	var fps_target := lerpf(fps_fov, max_fov, fov_t)
