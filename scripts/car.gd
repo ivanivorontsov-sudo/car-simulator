@@ -59,7 +59,10 @@ var _steer_wheel: Node3D
 var _driver_root: Node3D
 var _driver_head: Node3D
 var _cabin_dash: Node3D
+## Instantiated Kenney sedan-sports.glb root (opaque yellow body shell).
+var _sedan_visual: Node3D = null
 var _fps_hide_nodes: Array[Node3D] = []
+var _fps_vis_backup: Dictionary = {}  # instance_id -> was_visible before FPS hide
 var _crash_smoke: GPUParticles3D
 var _spark_fx: GPUParticles3D
 var _crash_audio: AudioStreamPlayer3D
@@ -128,16 +131,78 @@ func set_spawn(xf: Transform3D) -> void:
 
 
 func set_fps_view(enabled: bool) -> void:
+	## v1.3.3: hide the entire Kenney body in FPS. The sedan-sports GLB is a
+	## solid yellow shell; the FPS eye sits INSIDE it, so leaving the mesh
+	## visible fills the screen with yellow interior (not road/sky).
+	var entering := enabled and not _fps_mode
+	var leaving := (not enabled) and _fps_mode
 	_fps_mode = enabled
-	# Hide driver head/helmet in FPS so we look through their eyes.
-	if _driver_head:
-		_driver_head.visible = not enabled
-	for n in _fps_hide_nodes:
-		if is_instance_valid(n):
-			n.visible = not enabled
-	# Cabin dash more prominent in FPS.
-	if _cabin_dash:
+	if entering:
+		_backup_and_hide_fps_occluders()
+	elif enabled:
+		# Re-assert hide (e.g. after reset while already in FPS).
+		_hide_fps_occluders_only()
+	elif leaving or not enabled:
+		_restore_fps_occluders()
+	# Procedural cabin stays: dash (lower) + steering wheel.
+	if _cabin_dash and is_instance_valid(_cabin_dash):
 		_cabin_dash.visible = true
+	if _steer_wheel and is_instance_valid(_steer_wheel):
+		_steer_wheel.visible = true
+
+
+func _fps_occluder_nodes() -> Array[Node3D]:
+	var nodes: Array[Node3D] = []
+	if _sedan_visual:
+		nodes.append(_sedan_visual)
+	if _driver_root:
+		nodes.append(_driver_root)
+	if _bumper:
+		nodes.append(_bumper)
+	if _broken_glass:
+		nodes.append(_broken_glass)
+	for p in _panel_parts:
+		var n: Node3D = p["node"]
+		if n:
+			nodes.append(n)
+	for n in _fps_hide_nodes:
+		if n:
+			nodes.append(n)
+	return nodes
+
+
+func _backup_and_hide_fps_occluders() -> void:
+	_fps_vis_backup.clear()
+	for n in _fps_occluder_nodes():
+		if not is_instance_valid(n):
+			continue
+		_fps_vis_backup[n.get_instance_id()] = n.visible
+		n.visible = false
+
+
+func _hide_fps_occluders_only() -> void:
+	for n in _fps_occluder_nodes():
+		if is_instance_valid(n):
+			n.visible = false
+
+
+func _restore_fps_occluders() -> void:
+	for n in _fps_occluder_nodes():
+		if not is_instance_valid(n):
+			continue
+		var id := n.get_instance_id()
+		if _fps_vis_backup.has(id):
+			n.visible = bool(_fps_vis_backup[id])
+		elif n == _sedan_visual or n == _driver_root:
+			n.visible = true
+		elif n == _bumper:
+			n.visible = damage <= 0.75
+		elif n == _broken_glass:
+			n.visible = damage > 0.55
+		else:
+			# Deform panels: only show if already damaged.
+			n.visible = damage > 0.2
+	_fps_vis_backup.clear()
 
 
 func reset_vehicle() -> void:
@@ -415,10 +480,12 @@ func _attach_visuals() -> void:
 		push_warning("Missing sedan-sports.glb")
 		return
 	var inst: Node3D = packed.instantiate()
+	inst.name = "SedanSportsVisual"
 	visual.add_child(inst)
 	inst.rotation.y = PI
 	inst.scale = Vector3(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE)
 	inst.position = Vector3(0.0, -0.06, 0.02)
+	_sedan_visual = inst
 
 	var wheel_nodes := {
 		"wheel-front-left": wheel_fl,
@@ -1203,7 +1270,7 @@ func _deform_visual(local_dir: Vector3, severity: float) -> void:
 				align = 0.3
 		if align < 0.15 and severity < 0.5:
 			continue
-		node.visible = damage > 0.2
+		node.visible = (damage > 0.2) and not _fps_mode
 		var mat := node.material_override as StandardMaterial3D
 		if mat:
 			mat.albedo_color = Color(0.12, 0.12, 0.13, clampf(damage * 0.55, 0.0, 0.7))
@@ -1218,12 +1285,12 @@ func _deform_visual(local_dir: Vector3, severity: float) -> void:
 	if _bumper and -local_dir.z > 0.5 and severity > 0.55 and damage > 0.45:
 		_bumper.position += Vector3(local_dir.x * 0.4, -0.15, local_dir.z * 0.6)
 		_bumper.rotation += Vector3(0.4, local_dir.x * 0.8, 0.2)
-		if damage > 0.75:
+		if damage > 0.75 or _fps_mode:
 			_bumper.visible = false
 
 	# Broken windshield on severe frontal / roof hit.
 	if _broken_glass and damage > 0.55 and (-local_dir.z > 0.4 or local_dir.y > 0.5):
-		_broken_glass.visible = true
+		_broken_glass.visible = not _fps_mode
 		_broken_glass.rotation = Vector3(deg_to_rad(8), 0, local_dir.x * 0.15)
 
 

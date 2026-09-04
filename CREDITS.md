@@ -96,6 +96,8 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 
 ---
 
-## Procedural / code-only (v1.3.2)
+## Procedural / code-only (v1.3.3)
+
+- FPS cockpit: Kenney sedan GLB body fully hidden in first-person (yellow shell occlusion fix); procedural steering wheel + dash retained.
 
 - FPS steering wheel (rim, spokes, hub, logo disc): generated in `scripts/car.gd` — no external mesh download.

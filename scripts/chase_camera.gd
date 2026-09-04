@@ -14,7 +14,7 @@ signal mode_changed(mode: Mode)
 ## Eye height above vehicle origin (through windshield, not roof).
 @export var fps_eye_height: float = 1.20
 ## Along vehicle forward (−Z). Positive Z is rearward — sit behind the wheel.
-@export var fps_eye_forward: float = 0.28
+@export var fps_eye_forward: float = 0.18
 ## Lateral — right-hand seat.
 @export var fps_eye_lateral: float = 0.32
 @export var follow_speed: float = 5.4
