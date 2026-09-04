@@ -4,13 +4,13 @@ A playable 3D car driving simulator for Windows, built with **Godot 4.4**.
 
 Играбельный 3D-симулятор вождения для Windows на **Godot 4.4**.
 
-**v1.3.0** — true first-person driver view (eye through windshield, visible steering wheel, no rearward pull), hold-to-turn progressive steering, visual damage deformation with ~5 s auto-restart after critical crash / cliff fall, surface grip (asphalt / gravel / grass), cabin dash for FPS.
+**v1.3.1** — FPS cockpit with a proper procedural steering wheel low in frame (road-dominant windshield), snappier hold-to-turn steering, **hard reset** (R / pause Restart) that always yanks free of barriers/wreck freeze, visual damage + ~5 s auto-restart, surface grip, softer Armco.
 
 Player car: Kenney CC0 sedan-sports (scaled ~4 m) on `VehicleBody3D` + `VehicleWheel3D` with engine RPM, torque curve, gears (R + 1–5), **hold-to-turn** steering, brakes, handbrake, suspension travel, tire slip, anti-spin, weight transfer, **visual damage** (mesh crumple / bent panels / smoke — not soft-body), cliff freefall → wreck → auto-restart. Circuit: ~20 m asphalt, gravel runoff, cliff void (no infinite ground plane).
 
 Машина игрока: седан Kenney (CC0) с видом от первого лица, плавным рулём, визуальными повреждениями и авто-рестартом после критического краша / падения с обрыва.
 
-![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.3.0-blue)
+![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.3.1-blue)
 
 ## Play / Как играть
 

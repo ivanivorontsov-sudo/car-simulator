@@ -1,5 +1,6 @@
 extends Node3D
 
+
 @onready var world: WorldBuilder = $World
 @onready var car: PlayerCar = $Car
 @onready var camera: ChaseCamera = $ChaseCamera
@@ -92,9 +93,14 @@ func _set_paused(p: bool) -> void:
 
 
 func _restart() -> void:
+	## Shared hard reset path for R key, pause Restart, and wreck countdown.
+	Engine.time_scale = 1.0
 	_set_paused(false)
 	_restart_pending = false
 	_wreck_timer = 0.0
 	hud.clear_wreck()
+	# Ensure input is live again after pause / wreck.
+	get_viewport().gui_release_focus()
 	car.reset_vehicle()
 	car.set_fps_view(camera.is_fps())
+	camera.current = true

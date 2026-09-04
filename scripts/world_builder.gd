@@ -70,6 +70,33 @@ func surface_grip_at(world_pos: Vector3) -> float:
 	return 0.45
 
 
+func centerline_inward_at(world_pos: Vector3) -> Vector3:
+	## Unit vector from world_pos toward the nearest centerline point (XZ).
+	if _centerline.is_empty():
+		var fallback := Vector3(-world_pos.x, 0.0, -world_pos.z)
+		return fallback.normalized() if fallback.length() > 0.01 else Vector3.FORWARD
+	var best_i := 0
+	var best_d := INF
+	var n := _centerline.size()
+	var step := maxi(1, n / 80)
+	var i := 0
+	while i < n:
+		var d: float = Vector2(world_pos.x - _centerline[i].x, world_pos.z - _centerline[i].z).length_squared()
+		if d < best_d:
+			best_d = d
+			best_i = i
+		i += step
+	var f := _frame_at(_centerline, best_i)
+	var to_center: Vector3 = f["p"] - world_pos
+	to_center.y = 0.0
+	if to_center.length() < 0.01:
+		# On center — use opposite of outward.
+		var outward: Vector3 = f["right"] * _outward_sign(f)
+		to_center = -outward
+		to_center.y = 0.0
+	return to_center.normalized()
+
+
 func _setup_environment() -> void:
 	var hdri: Texture2D = load("res://assets/hdri/kloofendal_43d_clear_2k.hdr")
 	var sky_mat := PanoramaSkyMaterial.new()
@@ -722,12 +749,13 @@ func _build_start_finish(pts: PackedVector3Array) -> void:
 
 func _build_outer_barriers(pts: PackedVector3Array) -> void:
 	## Low Armco past the gravel, before the cliff rim — not on the racing line.
+	## Softer / lower so cars wedge less often on top of the rail.
 	var n := pts.size()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var height := 0.72
-	var thick := 0.22
-	var wall_lat := _APRON_START + 1.8
+	var height := 0.58
+	var thick := 0.16
+	var wall_lat := _APRON_START + 2.1
 	for i in n:
 		var a := _frame_at(pts, i)
 		var b := _frame_at(pts, (i + 1) % n)
@@ -762,6 +790,11 @@ func _build_outer_barriers(pts: PackedVector3Array) -> void:
 
 	var body := StaticBody3D.new()
 	body.name = "OuterBarrier"
+	var phys := PhysicsMaterial.new()
+	phys.friction = 0.28
+	phys.bounce = 0.02
+	phys.absorbent = true
+	body.physics_material_override = phys
 	var col := CollisionShape3D.new()
 	var concave := ConcavePolygonShape3D.new()
 	concave.set_faces(mesh.get_faces())

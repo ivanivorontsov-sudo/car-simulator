@@ -93,3 +93,9 @@ Original Kenney `License.txt` copies: `assets/licenses/`.
 ## Engine
 
 - [Godot Engine](https://godotengine.org/) 4.4.1 — MIT License
+
+---
+
+## Procedural / code-only (v1.3.1)
+
+- FPS steering wheel (rim, spokes, hub, logo disc): generated in `scripts/car.gd` — no external mesh download.

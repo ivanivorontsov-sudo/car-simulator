@@ -29,15 +29,15 @@ const WRECK_RESTART_DELAY := 5.0
 const GEAR_RATIOS: Array[float] = [-3.42, 3.58, 2.16, 1.48, 1.12, 0.86]
 
 @export var auto_shift: bool = true
-@export var max_steer_angle: float = 0.48
-@export var min_steer_angle: float = 0.12
+@export var max_steer_angle: float = 0.52
+@export var min_steer_angle: float = 0.20
 @export var brake_force: float = 34.0
 @export var handbrake_force: float = 22.0
 ## Steer input accel toward full lock (units/sec² feel via ease).
-@export var steer_accel: float = 4.6
-@export var steer_return_accel: float = 6.4
-@export var steer_max_rate: float = 2.7
-@export var steer_return_max_rate: float = 3.5
+@export var steer_accel: float = 8.2
+@export var steer_return_accel: float = 11.5
+@export var steer_max_rate: float = 4.4
+@export var steer_return_max_rate: float = 6.2
 
 var gear: int = 1
 var rpm: float = IDLE_RPM
@@ -75,6 +75,11 @@ var _airborne_timer: float = 0.0
 var _scrape_timer: float = 0.0
 var _fps_mode: bool = false
 var _world: WorldBuilder
+var _reset_seq: int = 0
+var _collision_layer_saved: int = 1
+var _collision_mask_saved: int = 1
+var _unstick_timer: float = 0.0
+var _collision_disabled: bool = false
 
 @onready var wheel_fl: VehicleWheel3D = $WheelFL
 @onready var wheel_fr: VehicleWheel3D = $WheelFR
@@ -136,8 +141,27 @@ func set_fps_view(enabled: bool) -> void:
 
 
 func reset_vehicle() -> void:
+	## Hard reset: always yank free of barriers / wreck freeze / contacts.
+	_reset_seq += 1
+	var seq := _reset_seq
 	is_wrecked = false
-	freeze = false
+	Engine.time_scale = 1.0
+	_unstick_timer = 0.0
+	_collision_disabled = false
+
+	# Capture layers once (first reset may run before physics ready).
+	if _collision_layer_saved == 1 and collision_layer != 0:
+		_collision_layer_saved = collision_layer
+	if _collision_mask_saved == 1 and collision_mask != 0:
+		_collision_mask_saved = collision_mask
+
+	# Freeze + drop collisions so barrier contacts cannot hold the body.
+	freeze = true
+	sleeping = false
+	collision_layer = 0
+	collision_mask = 0
+	_collision_disabled = true
+
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	_prev_velocity = Vector3.ZERO
@@ -147,16 +171,29 @@ func reset_vehicle() -> void:
 	_airborne_timer = 0.0
 	_scrape_timer = 0.0
 	damage = 0.0
-	sleeping = false
-	global_transform = _spawn_transform
 	gear = 1
 	rpm = IDLE_RPM
 	engine_force = 0.0
 	brake = 8.0
 	steering = 0.0
 	steer_input = 0.0
+	throttle_input = 0.0
+	brake_input = 0.0
+	handbrake_input = 0.0
 	_shift_lock = 0.2
 	_manual_override = false
+	slipping = 0.0
+	speed_kmh = 0.0
+
+	global_transform = _spawn_transform
+	# Force PhysicsServer state (teleport past active contacts).
+	var rid := get_rid()
+	if rid.is_valid():
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_TRANSFORM, _spawn_transform)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, Vector3.ZERO)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, Vector3.ZERO)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_SLEEPING, false)
+
 	if skid_marks:
 		skid_marks.clear_marks()
 	if _crash_smoke:
@@ -173,8 +210,47 @@ func reset_vehicle() -> void:
 		_broken_glass.visible = false
 	if engine_player and not engine_player.playing:
 		engine_player.play()
+	if _scrape_audio and _scrape_audio.playing:
+		_scrape_audio.stop()
 	damage_changed.emit(damage)
 	set_fps_view(_fps_mode)
+	_update_steering_wheel()
+
+	# Brief collision-off window so spawn is never wedged; then unfreeze.
+	_finish_hard_reset(seq)
+
+
+func _finish_hard_reset(seq: int) -> void:
+	# Two physics frames with collisions off, then restore.
+	# set_spawn() may run during parent _ready before SceneTree is fully available.
+	if not is_inside_tree() or get_tree() == null:
+		call_deferred("_finish_hard_reset", seq)
+		return
+	await get_tree().physics_frame
+	if seq != _reset_seq or not is_inside_tree():
+		return
+	global_transform = _spawn_transform
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	await get_tree().physics_frame
+	if seq != _reset_seq or not is_inside_tree():
+		return
+	_restore_collision_and_unfreeze()
+
+
+func _restore_collision_and_unfreeze() -> void:
+	collision_layer = _collision_layer_saved if _collision_layer_saved != 0 else 1
+	collision_mask = _collision_mask_saved if _collision_mask_saved != 0 else 1
+	_collision_disabled = false
+	freeze = false
+	sleeping = false
+	var rid := get_rid()
+	if rid.is_valid():
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_TRANSFORM, global_transform)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_LINEAR_VELOCITY, Vector3.ZERO)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_ANGULAR_VELOCITY, Vector3.ZERO)
+		PhysicsServer3D.body_set_state(rid, PhysicsServer3D.BODY_STATE_SLEEPING, false)
+
 
 
 func _setup_wheels() -> void:
@@ -473,40 +549,15 @@ func _attach_driver_and_cabin() -> void:
 	_add_part(_driver_root, CapsuleMesh.new(), Vector3(0.07, 0.22, 0.07), Vector3(-0.10, -0.10, -0.42), suit, Vector3(deg_to_rad(10), 0, 0))
 	_add_part(_driver_root, CapsuleMesh.new(), Vector3(0.07, 0.22, 0.07), Vector3(0.10, -0.10, -0.42), suit, Vector3(deg_to_rad(10), 0, 0))
 
-	# Steering wheel — visible in FPS, rotates with steer.
+	# Steering wheel — proper rim/spokes/hub; sits low in FPS frame.
 	_steer_wheel = Node3D.new()
 	_steer_wheel.name = "SteeringWheel"
-	_steer_wheel.position = Vector3(0.28, 0.95, -0.22)
-	_steer_wheel.rotation_degrees = Vector3(-32, 0, 0)
+	# Lower + slightly forward so road dominates the windshield view.
+	_steer_wheel.position = Vector3(0.28, 0.72, -0.38)
+	_steer_wheel.rotation_degrees = Vector3(-28, 0, 0)
+	_steer_wheel.scale = Vector3(0.82, 0.82, 0.82)
 	visual.add_child(_steer_wheel)
-	var rim := TorusMesh.new()
-	rim.inner_radius = 0.018
-	rim.outer_radius = 0.175
-	var rim_mi := MeshInstance3D.new()
-	rim_mi.mesh = rim
-	var wmat := StandardMaterial3D.new()
-	wmat.albedo_color = Color(0.08, 0.08, 0.09)
-	wmat.roughness = 0.4
-	wmat.metallic = 0.2
-	rim_mi.material_override = wmat
-	_steer_wheel.add_child(rim_mi)
-	var hub := CylinderMesh.new()
-	hub.top_radius = 0.035
-	hub.bottom_radius = 0.035
-	hub.height = 0.03
-	var hub_mi := MeshInstance3D.new()
-	hub_mi.mesh = hub
-	hub_mi.rotation_degrees = Vector3(90, 0, 0)
-	hub_mi.material_override = wmat
-	_steer_wheel.add_child(hub_mi)
-	for ang in [0.0, 60.0, 120.0]:
-		var spoke := BoxMesh.new()
-		spoke.size = Vector3(0.02, 0.145, 0.012)
-		var smi := MeshInstance3D.new()
-		smi.mesh = spoke
-		smi.rotation_degrees = Vector3(0, 0, ang)
-		smi.material_override = wmat
-		_steer_wheel.add_child(smi)
+	_build_steering_wheel_mesh(_steer_wheel)
 
 	# Simple dash + hood edge for FPS framing (road still dominates).
 	_cabin_dash = Node3D.new()
@@ -515,13 +566,137 @@ func _attach_driver_and_cabin() -> void:
 	var dash_mat := StandardMaterial3D.new()
 	dash_mat.albedo_color = Color(0.1, 0.11, 0.13)
 	dash_mat.roughness = 0.65
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.35, 0.12, 0.55), Vector3(0.0, 0.78, -0.55), dash_mat)
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(0.55, 0.08, 0.28), Vector3(0.28, 0.86, -0.42), dash_mat)
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.35, 0.10, 0.50), Vector3(0.0, 0.70, -0.62), dash_mat)
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(0.48, 0.06, 0.22), Vector3(0.28, 0.76, -0.48), dash_mat)
 	var hood_mat := StandardMaterial3D.new()
 	hood_mat.albedo_color = Color(0.18, 0.2, 0.24)
 	hood_mat.roughness = 0.35
 	hood_mat.metallic = 0.45
-	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.4, 0.06, 0.9), Vector3(0.0, 0.72, -1.15), hood_mat)
+	_add_part(_cabin_dash, BoxMesh.new(), Vector3(1.4, 0.05, 0.85), Vector3(0.0, 0.66, -1.20), hood_mat)
+
+
+func _build_steering_wheel_mesh(root: Node3D) -> void:
+	## Procedural racing wheel: thick rim, 3 spokes, hub, logo disc (CC0 / code only).
+	var leather := StandardMaterial3D.new()
+	leather.albedo_color = Color(0.06, 0.06, 0.07)
+	leather.roughness = 0.55
+	leather.metallic = 0.05
+
+	var grip := StandardMaterial3D.new()
+	grip.albedo_color = Color(0.09, 0.09, 0.10)
+	grip.roughness = 0.72
+
+	var chrome := StandardMaterial3D.new()
+	chrome.albedo_color = Color(0.72, 0.74, 0.78)
+	chrome.roughness = 0.28
+	chrome.metallic = 0.85
+
+	var accent := StandardMaterial3D.new()
+	accent.albedo_color = Color(0.75, 0.12, 0.14)
+	accent.roughness = 0.4
+	accent.metallic = 0.2
+
+	var logo := StandardMaterial3D.new()
+	logo.albedo_color = Color(0.15, 0.16, 0.18)
+	logo.roughness = 0.35
+	logo.metallic = 0.55
+
+	# Main rim (torus in XY plane — faces camera when wheel stands upright).
+	var rim := TorusMesh.new()
+	rim.inner_radius = 0.022
+	rim.outer_radius = 0.155
+	rim.rings = 24
+	rim.ring_segments = 32
+	var rim_mi := MeshInstance3D.new()
+	rim_mi.name = "Rim"
+	rim_mi.mesh = rim
+	rim_mi.material_override = leather
+	root.add_child(rim_mi)
+
+	# Grip pads at 10/2/bottom (subtle thickness).
+	for ang_deg in [20.0, 160.0, 270.0]:
+		var pad := TorusMesh.new()
+		pad.inner_radius = 0.028
+		pad.outer_radius = 0.158
+		pad.rings = 10
+		pad.ring_segments = 12
+		var pmi := MeshInstance3D.new()
+		pmi.mesh = pad
+		pmi.material_override = grip
+		# Partial look via scale squash — still reads as padded sections.
+		pmi.scale = Vector3(1.0, 1.0, 0.55)
+		pmi.rotation_degrees = Vector3(0, 0, ang_deg)
+		root.add_child(pmi)
+
+	# Hub barrel.
+	var hub := CylinderMesh.new()
+	hub.top_radius = 0.042
+	hub.bottom_radius = 0.048
+	hub.height = 0.045
+	var hub_mi := MeshInstance3D.new()
+	hub_mi.name = "Hub"
+	hub_mi.mesh = hub
+	hub_mi.rotation_degrees = Vector3(90, 0, 0)
+	hub_mi.position = Vector3(0, 0, 0.01)
+	hub_mi.material_override = chrome
+	root.add_child(hub_mi)
+
+	# Logo disc.
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.032
+	disc.bottom_radius = 0.032
+	disc.height = 0.012
+	var disc_mi := MeshInstance3D.new()
+	disc_mi.name = "LogoDisc"
+	disc_mi.mesh = disc
+	disc_mi.rotation_degrees = Vector3(90, 0, 0)
+	disc_mi.position = Vector3(0, 0, -0.018)
+	disc_mi.material_override = logo
+	root.add_child(disc_mi)
+	# Tiny accent mark on logo.
+	var mark := BoxMesh.new()
+	mark.size = Vector3(0.028, 0.008, 0.004)
+	var mark_mi := MeshInstance3D.new()
+	mark_mi.mesh = mark
+	mark_mi.position = Vector3(0, 0, -0.026)
+	mark_mi.material_override = accent
+	root.add_child(mark_mi)
+
+	# Three racing spokes (Y layout): top + lower L/R.
+	var spoke_angles := [90.0, 210.0, 330.0]
+	for ang in spoke_angles:
+		var spoke_root := Node3D.new()
+		spoke_root.rotation_degrees = Vector3(0, 0, ang)
+		root.add_child(spoke_root)
+		# Arm from hub toward rim.
+		var arm := BoxMesh.new()
+		arm.size = Vector3(0.028, 0.118, 0.016)
+		var arm_mi := MeshInstance3D.new()
+		arm_mi.mesh = arm
+		arm_mi.position = Vector3(0, 0.062, 0)
+		arm_mi.material_override = chrome
+		spoke_root.add_child(arm_mi)
+		# Wider plate near hub.
+		var plate := BoxMesh.new()
+		plate.size = Vector3(0.05, 0.035, 0.014)
+		var plate_mi := MeshInstance3D.new()
+		plate_mi.mesh = plate
+		plate_mi.position = Vector3(0, 0.028, 0)
+		plate_mi.material_override = chrome
+		spoke_root.add_child(plate_mi)
+
+	# Column stub behind hub (depth cue).
+	var col := CylinderMesh.new()
+	col.top_radius = 0.018
+	col.bottom_radius = 0.022
+	col.height = 0.08
+	var col_mi := MeshInstance3D.new()
+	col_mi.mesh = col
+	col_mi.rotation_degrees = Vector3(90, 0, 0)
+	col_mi.position = Vector3(0, 0, 0.05)
+	col_mi.material_override = chrome
+	root.add_child(col_mi)
+
 
 
 func _add_part(parent: Node3D, mesh: Mesh, size: Vector3, pos: Vector3, mat: Material, rot: Vector3 = Vector3.ZERO) -> MeshInstance3D:
@@ -608,6 +783,7 @@ func _physics_process(delta: float) -> void:
 	_update_audio()
 	_check_impacts(delta)
 	_update_damage_fx()
+	_maybe_auto_unstick(delta)
 	_prev_velocity = linear_velocity
 	telemetry.emit(speed_kmh, rpm, gear, slipping, damage)
 
@@ -671,9 +847,9 @@ func _integrate_steer_input(desired: float, delta: float) -> void:
 	var err := target - steer_input
 	var accel := steer_return_accel if returning else steer_accel
 	var max_rate := steer_return_max_rate if returning else steer_max_rate
-	# Ease-in: softer start when input is small; ease-out near target.
+	# Mild ease-out near target; keep initial response snappy.
 	var ease := smoothstep(0.0, 1.0, absf(err))
-	ease = lerpf(0.35, 1.0, ease)
+	ease = lerpf(0.55, 1.0, ease)
 	var want_vel := signf(err) * max_rate * ease
 	if returning:
 		want_vel = -signf(steer_input) * max_rate * ease if absf(steer_input) > 0.001 else 0.0
@@ -768,11 +944,11 @@ func _update_engine(delta: float, speed_ms: float) -> void:
 
 
 func _apply_steering(delta: float) -> void:
-	var speed_factor := clampf(absf(speed_kmh) / 170.0, 0.0, 1.0)
+	var speed_factor := clampf(absf(speed_kmh) / 200.0, 0.0, 1.0)
 	var max_steer := lerpf(max_steer_angle, min_steer_angle, speed_factor)
 	# VehicleBody3D: positive steering = LEFT (faces −Z). Axis left=-1 → negate.
 	var target := -steer_input * max_steer
-	var steer_rate := lerpf(6.2, 3.6, speed_factor)
+	var steer_rate := lerpf(9.5, 5.8, speed_factor)
 	steering = lerp_angle(steering, target, 1.0 - exp(-delta * steer_rate))
 
 
@@ -863,11 +1039,39 @@ func _update_slip_fx() -> void:
 		_airborne_timer = 0.0
 
 
+func _maybe_auto_unstick(delta: float) -> void:
+	## If nearly stopped against Armco/barrier for a few seconds, nudge free.
+	if is_wrecked or _collision_disabled:
+		_unstick_timer = 0.0
+		return
+	var against_barrier := false
+	if contact_monitor:
+		for b in get_colliding_bodies():
+			if b is StaticBody3D and String((b as Node).name).begins_with("OuterBarrier"):
+				against_barrier = true
+				break
+	var nearly_stopped := linear_velocity.length() < 1.6 and absf(speed_kmh) < 4.0
+	if against_barrier and nearly_stopped:
+		_unstick_timer += delta
+	else:
+		_unstick_timer = maxf(_unstick_timer - delta * 0.5, 0.0)
+	if _unstick_timer < 2.8:
+		return
+	_unstick_timer = 0.0
+	# Impulse toward track center (inboard) + slight lift.
+	var inward := -global_transform.basis.x
+	if _world:
+		inward = _world.centerline_inward_at(global_position)
+	apply_central_impulse(inward.normalized() * mass * 3.2 + Vector3.UP * mass * 1.1)
+	apply_torque_impulse(global_transform.basis.y * mass * 0.15)
+
+
 func _update_steering_wheel() -> void:
 	if _steer_wheel == null:
 		return
 	var wheel_deg := rad_to_deg(steering) * (450.0 / rad_to_deg(max_steer_angle))
-	_steer_wheel.rotation.z = deg_to_rad(wheel_deg)
+	# Keep base cockpit tilt on X; steer rotates around wheel axis (Z).
+	_steer_wheel.rotation = Vector3(deg_to_rad(-28.0), 0.0, deg_to_rad(wheel_deg))
 
 
 func _check_impacts(_delta: float) -> void:
@@ -1066,8 +1270,9 @@ func _enter_wreck() -> void:
 		engine_player.stop()
 	wrecked.emit()
 	# Soft freeze after brief settle — game.gd restarts after delay.
+	var seq := _reset_seq
 	get_tree().create_timer(0.45).timeout.connect(func():
-		if is_wrecked:
+		if is_wrecked and seq == _reset_seq:
 			freeze = true
 	)
 

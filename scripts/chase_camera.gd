@@ -12,16 +12,16 @@ signal mode_changed(mode: Mode)
 @export var chase_height: float = 2.45
 @export var chase_look_height: float = 1.05
 ## Eye height above vehicle origin (through windshield, not roof).
-@export var fps_eye_height: float = 1.14
+@export var fps_eye_height: float = 1.28
 ## Along vehicle forward (−Z). Small positive Z sits just behind the dash.
-@export var fps_eye_forward: float = 0.08
+@export var fps_eye_forward: float = 0.22
 ## Lateral — right-hand seat.
 @export var fps_eye_lateral: float = 0.28
 @export var follow_speed: float = 5.4
 @export var look_speed: float = 7.5
 @export var base_fov: float = 70.0
-@export var fps_fov: float = 72.0
-@export var max_fov: float = 82.0
+@export var fps_fov: float = 78.0
+@export var max_fov: float = 88.0
 
 var target: Node3D
 var mode: Mode = Mode.CHASE
@@ -86,22 +86,23 @@ func _physics_process(delta: float) -> void:
 
 func _update_fps(delta: float, speed_kmh: float, steer: float) -> void:
 	# TRUE first-person: snap to eye — never lerp/lag behind on acceleration.
-	var local_eye := Vector3(fps_eye_lateral + steer * 0.02, fps_eye_height, fps_eye_forward)
+	# Higher eye + slight rearward offset keeps the wheel in the lower third.
+	var local_eye := Vector3(fps_eye_lateral + steer * 0.015, fps_eye_height, fps_eye_forward)
 	global_position = target.global_transform * local_eye
 
 	# Look through the windshield at the road ahead (road-dominant framing).
-	var look_local := Vector3(fps_eye_lateral * 0.25 - steer * 0.85, 0.18, -12.0)
+	var look_local := Vector3(fps_eye_lateral * 0.2 - steer * 0.7, 0.05, -14.0)
 	var look: Vector3 = target.global_transform * look_local
 	if not _look_ready:
 		_look_point = look
 		_look_ready = true
 	_look_point = _look_point.lerp(look, 1.0 - exp(-delta * 22.0))
 	look_at(_look_point, Vector3.UP)
-	# Extra downward pitch so horizon sits high and asphalt fills the frame.
-	rotate_object_local(Vector3.RIGHT, deg_to_rad(-5.5))
+	# Mild downward pitch: asphalt fills frame, wheel stays bottom-of-screen.
+	rotate_object_local(Vector3.RIGHT, deg_to_rad(-2.8))
 
 	var fov_t := clampf(speed_kmh / 210.0, 0.0, 1.0)
-	var fps_target := lerpf(fps_fov, minf(max_fov, 78.0), fov_t)
+	var fps_target := lerpf(fps_fov, max_fov, fov_t)
 	fov = lerpf(fov, fps_target, 1.0 - exp(-delta * 2.4))
 
 
