@@ -75,8 +75,9 @@ jobs:
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: car-simulator-windows-installer
           path: build/installer/
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
