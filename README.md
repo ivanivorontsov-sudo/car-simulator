@@ -1,6 +1,4 @@
-# Car Simulator / Автосимулятор
-
-A playable 3D car driving simulator for Windows, built with **Godot 4.4**.
+# Автосимулятор для Windows
 
 Играбельный 3D-симулятор вождения для Windows на **Godot 4.4**.
 
@@ -12,9 +10,9 @@ Player car: Kenney CC0 sedan-sports (scaled ~4 m) on `VehicleBody3D` + `VehicleW
 
 ![Godot](https://img.shields.io/badge/Godot-4.4.1-478cbf) ![License](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/badge/version-1.3.4-blue)
 
-## Play / Как играть
+## Как играть
 
-### Download the Windows installer (GitHub Actions)
+### Скачать установщик Windows (GitHub Actions)
 
 1. Open **Actions** on this repository: [github.com/ivanivorontsov-sudo/car-simulator/actions](https://github.com/ivanivorontsov-sudo/car-simulator/actions)
 2. Select workflow **Build Windows installer**
@@ -30,9 +28,9 @@ Player car: Kenney CC0 sedan-sports (scaled ~4 m) on `VehicleBody3D` + `VehicleW
 4. Скачайте артефакт **`car-simulator-windows-installer`**
 5. Распакуйте и запустите **`CarSimulatorSetup.exe`**. Если вместо установщика лежит zip — распакуйте и запустите `CarSimulator.exe` или `Start.bat`.
 
-## Controls / Управление
+## Управление
 
-| Key / Клавиша | Action / Действие |
+| Клавиша | Действие |
 | --- | --- |
 | **W** / **↑** | Throttle / Газ |
 | **S** / **↓** | Brake / reverse / Тормоз / задний ход |
@@ -48,7 +46,7 @@ Player car: Kenney CC0 sedan-sports (scaled ~4 m) on `VehicleBody3D` + `VehicleW
 
 HUD: tachometer, gear, speed (km/h), RPM bar, optional **damage** bar. Critical wreck / cliff fall shows a countdown then auto-restarts (~5 s).
 
-## Run from source / Запуск из исходников
+## Запуск из исходников
 
 Requirements: [Godot 4.4.x](https://godotengine.org/download) (tested with **4.4.1**).
 
@@ -68,7 +66,7 @@ Requirements: [Godot 4.4.x](https://godotengine.org/download) (tested with **4.4
 4. F5. Главная сцена: scenes/main.tscn.
 ```
 
-## Physics & damage / Физика и повреждения
+## Физика и повреждения
 
 - Godot `VehicleBody3D` + four `VehicleWheel3D` (RWD, front steer)
 - Engine: idle 900 RPM, redline 7500, peak torque ~400 N·m @ 4800 RPM
@@ -82,7 +80,7 @@ This is **not** a soft-body / BeamNG simulator. Deformation is a visual approxim
 
 Это **не** soft-body как BeamNG. Повреждения — визуальная аппроксимация на твёрдом теле.
 
-## Project layout / Структура
+## Структура проекта
 
 ```text
 scenes/           Main, car, HUD, pause
@@ -95,6 +93,6 @@ installer/        NSIS script + Start.bat fallback
 .github/workflows/build-installer.yml
 ```
 
-## License
+## Лицензия
 
 Code: MIT (see `LICENSE`). Third-party assets: see `CREDITS.md`.
